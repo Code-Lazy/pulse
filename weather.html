@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weather — Pulse</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── Stat row ── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 2rem;
+    }
+    @media (max-width: 700px) { .stats-row { grid-template-columns: repeat(2,1fr); } }
+
+    /* ── Main layout ── */
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 24px;
+      align-items: start;
+    }
+    @media (max-width: 900px) { .content-grid { grid-template-columns: 1fr; } }
+
+    /* ── Sidebar ── */
+    .sidebar { display: flex; flex-direction: column; gap: 20px; }
+
+    .panel {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+    }
+
+    .panel-title {
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+
+    /* ── Filters ── */
+    .filters {
+      display: flex; gap: 8px; flex-wrap: wrap;
+      margin-bottom: 1.25rem;
+    }
+
+    .filter-btn {
+      font-family: var(--font-body);
+      font-size: 12px; font-weight: 500;
+      padding: 5px 12px;
+      border-radius: 100px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .filter-btn:hover { border-color: var(--border-hover); color: var(--text); }
+    .filter-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+
+    /* ── Category bars ── */
+    .cat-item {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 10px;
+    }
+    .cat-label { font-size: 12px; color: var(--text-muted); min-width: 70px; }
+    .cat-track { flex: 1; height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+    .cat-fill { height: 100%; border-radius: 2px; transition: width 0.8s ease; }
+    .cat-count { font-size: 11px; color: var(--text-dim); min-width: 20px; text-align: right; }
+
+    /* ── Weather cards ── */
+    .weather-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .weather-card:hover { border-color: var(--border-hover); background: var(--bg3); }
+
+    .weather-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .weather-city {
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      line-height: 1.2;
+    }
+
+    .weather-country {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 400;
+      margin-top: 2px;
+    }
+
+    .weather-emoji {
+      font-size: 28px;
+      line-height: 1;
+    }
+
+    .weather-temp {
+      font-family: var(--font-display);
+      font-size: 38px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .weather-condition {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+
+    .weather-meta {
+      display: flex;
+      gap: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .weather-meta-item {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .weather-meta-item span {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    /* Temperature color tints */
+    .temp-hot { color: #ff8c42; }
+    .temp-warm { color: #ffc857; }
+    .temp-mild { color: var(--text); }
+    .temp-cool { color: #7ec8e3; }
+    .temp-cold { color: #4da6ff; }
+    .temp-freezing { color: #97c1ff; }
+
+    /* ── Range bar (sidebar) ── */
+    .range-bar-wrap {
+      position: relative;
+      height: 8px;
+      background: linear-gradient(90deg, #4da6ff, #7ec8e3, #ffc857, #ff8c42, #ff4d4d);
+      border-radius: 4px;
+      margin: 20px 0 10px;
+    }
+
+    .range-marker {
+      position: absolute;
+      top: -6px;
+      width: 3px;
+      height: 20px;
+      background: var(--text);
+      border-radius: 2px;
+      transform: translateX(-50%);
+    }
+
+    .range-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .range-city-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      font-size: 13px;
+    }
+
+    .range-city-name { color: var(--text); font-weight: 500; }
+    .range-city-temp { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.02em; }
+
+    /* ── Update row ── */
+    .update-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    .update-time {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* ── Skeleton ── */
+    .sk-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+    }
+
+    .sk-line { height: 12px; margin-bottom: 8px; border-radius: 3px; }
+    .sk-line.short { width: 55%; }
+    .sk-line.tall { height: 36px; width: 40%; margin-bottom: 12px; }
+
+    /* ── Error state ── */
+    .error-state {
+      text-align: center; padding: 3rem 1rem;
+      color: var(--text-muted); font-size: 14px;
+    }
+    .error-state .err-icon { font-size: 32px; margin-bottom: 8px; opacity: 0.4; }
+
+    /* ── Loading state ── */
+    .loading-state {
+      display: flex; align-items: center; justify-content: center;
+      gap: 12px; padding: 3rem;
+      color: var(--text-muted); font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">Pulse<span>.</span></a>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="news.html">News</a></li>
+    <li><a href="earthquakes.html">Earthquakes</a></li>
+    <li><a href="stocks.html">Stocks</a></li>
+    <li><a href="space.html">Space</a></li>
+    <li><a href="github.html">GitHub</a></li>
+    <li><a href="weather.html" class="active">Weather</a></li>
+  </ul>
+</nav>
+
+<div class="page">
+
+  <div class="dash-header">
+    <div>
+      <h1 class="dash-title">Weather</h1>
+      <p class="dash-subtitle">Live conditions in major cities worldwide</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span class="live-badge"><span class="live-dot"></span> Live</span>
+      <button class="btn" id="refreshBtn" onclick="loadAll()">&#8635; Refresh</button>
+    </div>
+  </div>
+
+  <!-- Stat cards -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Cities tracked</div>
+      <div class="stat-value" id="stat-count">&mdash;</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Hottest city</div>
+      <div class="stat-value" id="stat-hot" style="font-size:20px">&mdash;</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Coldest city</div>
+      <div class="stat-value" id="stat-cold" style="font-size:20px">&mdash;</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Last updated</div>
+      <div class="stat-value" id="stat-time" style="font-size:18px">&mdash;</div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters" id="filters">
+    <button class="filter-btn active" data-filter="all" onclick="setFilter('all', this)">All</button>
+    <button class="filter-btn" data-filter="americas" onclick="setFilter('americas', this)">Americas</button>
+    <button class="filter-btn" data-filter="europe" onclick="setFilter('europe', this)">Europe</button>
+    <button class="filter-btn" data-filter="asia" onclick="setFilter('asia', this)">Asia</button>
+    <button class="filter-btn" data-filter="africa-me" onclick="setFilter('africa-me', this)">Africa / Middle East</button>
+    <button class="filter-btn" data-filter="oceania" onclick="setFilter('oceania', this)">Oceania</button>
+  </div>
+
+  <div class="content-grid">
+
+    <!-- Weather cards -->
+    <div>
+      <div class="update-row">
+        <span id="visibleCount" class="update-time"></span>
+      </div>
+      <div class="grid-2" id="weatherGrid">
+        <!-- populated by JS -->
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+
+      <div class="panel">
+        <div class="panel-title">Temperature range</div>
+        <div id="tempRangePanel">
+          <div style="color:var(--text-muted);font-size:13px;">Loading&hellip;</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Conditions breakdown</div>
+        <div id="conditionsPanel">
+          <div style="color:var(--text-muted);font-size:13px;">Loading&hellip;</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">About this feed</div>
+        <p style="font-size:13px;color:var(--text-muted);line-height:1.6;">
+          Weather data from
+          <a href="https://open-meteo.com/" target="_blank" style="color:var(--accent);">Open-Meteo</a>
+          free API. Tracking 20 major cities worldwide with live conditions. Auto-refreshes every 60 seconds.
+        </p>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  Pulse &mdash; weather data via <a href="https://open-meteo.com/" target="_blank" style="color:var(--text-muted);">Open-Meteo API</a>
+</footer>
+
+<script>
+  // ── City data ──
+  const CITIES = [
+    { name: 'Tokyo',        country: 'Japan',        lat: 35.6762,  lng: 139.6503, region: 'asia' },
+    { name: 'Delhi',        country: 'India',        lat: 28.7041,  lng: 77.1025,  region: 'asia' },
+    { name: 'Shanghai',     country: 'China',        lat: 31.2304,  lng: 121.4737, region: 'asia' },
+    { name: 'S\u00e3o Paulo',    country: 'Brazil',       lat: -23.5505, lng: -46.6333, region: 'americas' },
+    { name: 'Mexico City',  country: 'Mexico',       lat: 19.4326,  lng: -99.1332, region: 'americas' },
+    { name: 'Cairo',        country: 'Egypt',        lat: 30.0444,  lng: 31.2357,  region: 'africa-me' },
+    { name: 'Mumbai',       country: 'India',        lat: 19.0760,  lng: 72.8777,  region: 'asia' },
+    { name: 'Beijing',      country: 'China',        lat: 39.9042,  lng: 116.4074, region: 'asia' },
+    { name: 'London',       country: 'United Kingdom',lat: 51.5074,  lng: -0.1278,  region: 'europe' },
+    { name: 'New York',     country: 'United States', lat: 40.7128,  lng: -74.0060, region: 'americas' },
+    { name: 'Paris',        country: 'France',       lat: 48.8566,  lng: 2.3522,   region: 'europe' },
+    { name: 'Istanbul',     country: 'Turkey',       lat: 41.0082,  lng: 28.9784,  region: 'europe' },
+    { name: 'Lagos',        country: 'Nigeria',      lat: 6.5244,   lng: 3.3792,   region: 'africa-me' },
+    { name: 'Buenos Aires', country: 'Argentina',    lat: -34.6037, lng: -58.3816, region: 'americas' },
+    { name: 'Moscow',       country: 'Russia',       lat: 55.7558,  lng: 37.6173,  region: 'europe' },
+    { name: 'Sydney',       country: 'Australia',    lat: -33.8688, lng: 151.2093, region: 'oceania' },
+    { name: 'Dubai',        country: 'UAE',          lat: 25.2048,  lng: 55.2708,  region: 'africa-me' },
+    { name: 'Singapore',    country: 'Singapore',    lat: 1.3521,   lng: 103.8198, region: 'asia' },
+    { name: 'Toronto',      country: 'Canada',       lat: 43.6532,  lng: -79.3832, region: 'americas' },
+    { name: 'Berlin',       country: 'Germany',      lat: 52.5200,  lng: 13.4050,  region: 'europe' }
+  ];
+
+  let weatherData = []; // merged city + API result
+  let currentFilter = 'all';
+
+  // ── WMO weather code mapping ──
+  function wmoToCondition(code) {
+    if (code === 0) return { emoji: '\u2600\ufe0f', label: 'Clear sky', group: 'Clear' };
+    if (code <= 3)  return { emoji: '\u26c5', label: 'Partly cloudy', group: 'Cloudy' };
+    if (code <= 48) return { emoji: '\ud83c\udf2b\ufe0f', label: 'Fog', group: 'Fog' };
+    if (code <= 55) return { emoji: '\ud83c\udf27\ufe0f', label: 'Drizzle', group: 'Rain' };
+    if (code <= 65) return { emoji: '\ud83c\udf27\ufe0f', label: 'Rain', group: 'Rain' };
+    if (code <= 77) return { emoji: '\ud83c\udf28\ufe0f', label: 'Snow', group: 'Snow' };
+    if (code <= 82) return { emoji: '\ud83c\udf26\ufe0f', label: 'Showers', group: 'Rain' };
+    if (code <= 99) return { emoji: '\u26c8\ufe0f', label: 'Thunderstorm', group: 'Storm' };
+    return { emoji: '\u2601\ufe0f', label: 'Unknown', group: 'Cloudy' };
+  }
+
+  // ── Temperature color class ──
+  function tempClass(t) {
+    if (t <= 0)  return 'temp-freezing';
+    if (t <= 10) return 'temp-cold';
+    if (t <= 18) return 'temp-cool';
+    if (t <= 25) return 'temp-mild';
+    if (t <= 33) return 'temp-warm';
+    return 'temp-hot';
+  }
+
+  // ── Fetch ──
+  async function loadAll() {
+    const grid = document.getElementById('weatherGrid');
+    grid.innerHTML = skeletonCards(8);
+
+    try {
+      const results = await Promise.all(
+        CITIES.map(city =>
+          fetch(`https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lng}&current=temperature_2m,relative_humidity_2m,apparent_temperature,wind_speed_10m,weather_code&timezone=auto`)
+            .then(r => r.json())
+            .then(data => ({ ...city, current: data.current }))
+            .catch(() => ({ ...city, current: null }))
+        )
+      );
+
+      weatherData = results;
+      renderAll();
+    } catch (e) {
+      grid.innerHTML = `
+        <div class="error-state" style="grid-column:1/-1;">
+          <div class="err-icon">\u26a0</div>
+          <div>Couldn't load weather data. Please try again in a moment.</div>
+        </div>`;
+    }
+  }
+
+  function skeletonCards(n) {
+    return Array.from({ length: n }, () => `
+      <div class="sk-card">
+        <div class="sk-line skeleton" style="width:50%;"></div>
+        <div class="sk-line short skeleton" style="width:30%;"></div>
+        <div class="sk-line tall skeleton"></div>
+        <div class="sk-line skeleton" style="width:70%;"></div>
+        <div class="sk-line skeleton" style="width:80%;margin-bottom:0;"></div>
+      </div>`).join('');
+  }
+
+  // ── Filter ──
+  function setFilter(f, btn) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (weatherData.length) renderAll();
+  }
+
+  function applyFilter(city) {
+    if (currentFilter === 'all') return true;
+    return city.region === currentFilter;
+  }
+
+  // ── Render ──
+  function renderAll() {
+    const withData = weatherData.filter(c => c.current);
+    const filtered = weatherData.filter(c => c.current && applyFilter(c));
+
+    // Stats
+    document.getElementById('stat-count').textContent = withData.length;
+    document.getElementById('stat-time').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    if (withData.length) {
+      const sorted = [...withData].sort((a, b) => b.current.temperature_2m - a.current.temperature_2m);
+      const hottest = sorted[0];
+      const coldest = sorted[sorted.length - 1];
+
+      document.getElementById('stat-hot').textContent = hottest.name + ' ' + Math.round(hottest.current.temperature_2m) + '\u00b0C';
+      document.getElementById('stat-cold').textContent = coldest.name + ' ' + Math.round(coldest.current.temperature_2m) + '\u00b0C';
+    }
+
+    document.getElementById('visibleCount').textContent = `Showing ${filtered.length} cities`;
+
+    // Weather cards
+    const grid = document.getElementById('weatherGrid');
+    if (!filtered.length) {
+      grid.innerHTML = `<div class="error-state" style="grid-column:1/-1;">
+        <div class="err-icon">\ud83c\udf0d</div>
+        <div>No cities match this filter.</div>
+      </div>`;
+      return;
+    }
+
+    grid.innerHTML = filtered.map(city => {
+      const c = city.current;
+      const temp = Math.round(c.temperature_2m);
+      const feelsLike = Math.round(c.apparent_temperature);
+      const humidity = c.relative_humidity_2m;
+      const wind = c.wind_speed_10m;
+      const cond = wmoToCondition(c.weather_code);
+      const tClass = tempClass(c.temperature_2m);
+
+      return `
+        <div class="weather-card">
+          <div class="weather-card-header">
+            <div>
+              <div class="weather-city">${escHtml(city.name)}</div>
+              <div class="weather-country">${escHtml(city.country)}</div>
+            </div>
+            <div class="weather-emoji">${cond.emoji}</div>
+          </div>
+          <div class="weather-temp ${tClass}">${temp}\u00b0C</div>
+          <div class="weather-condition">${cond.emoji} ${cond.label}</div>
+          <div class="weather-meta">
+            <div class="weather-meta-item">\ud83d\udca8 <span>${wind} km/h</span></div>
+            <div class="weather-meta-item">\ud83d\udca7 <span>${humidity}%</span></div>
+            <div class="weather-meta-item">Feels <span>${feelsLike}\u00b0C</span></div>
+          </div>
+        </div>`;
+    }).join('');
+
+    // Sidebar
+    renderTempRange(withData);
+    renderConditions(withData);
+  }
+
+  function renderTempRange(cities) {
+    const sorted = [...cities].sort((a, b) => b.current.temperature_2m - a.current.temperature_2m);
+    const hottest = sorted[0];
+    const coldest = sorted[sorted.length - 1];
+    const minTemp = coldest.current.temperature_2m;
+    const maxTemp = hottest.current.temperature_2m;
+    const range = maxTemp - minTemp || 1;
+
+    // Show top 3 hottest and top 3 coldest
+    const top3 = sorted.slice(0, 3);
+    const bottom3 = sorted.slice(-3).reverse();
+
+    const hotPct = 100;
+    const coldPct = 0;
+
+    document.getElementById('tempRangePanel').innerHTML = `
+      <div style="margin-bottom:14px;">
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Hottest</div>
+        ${top3.map(c => `
+          <div class="range-city-label">
+            <span class="range-city-name">${escHtml(c.name)}</span>
+            <span class="range-city-temp temp-hot">${Math.round(c.current.temperature_2m)}\u00b0C</span>
+          </div>`).join('')}
+      </div>
+      <div class="range-bar-wrap">
+        <div class="range-marker" style="left:${((coldest.current.temperature_2m - minTemp) / range * 100).toFixed(1)}%;" title="${escHtml(coldest.name)}"></div>
+        <div class="range-marker" style="left:${((hottest.current.temperature_2m - minTemp) / range * 100).toFixed(1)}%;" title="${escHtml(hottest.name)}"></div>
+      </div>
+      <div class="range-labels">
+        <span>${Math.round(minTemp)}\u00b0C</span>
+        <span>${Math.round(maxTemp)}\u00b0C</span>
+      </div>
+      <div style="margin-top:14px;">
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Coldest</div>
+        ${bottom3.map(c => `
+          <div class="range-city-label">
+            <span class="range-city-name">${escHtml(c.name)}</span>
+            <span class="range-city-temp temp-cold">${Math.round(c.current.temperature_2m)}\u00b0C</span>
+          </div>`).join('')}
+      </div>`;
+  }
+
+  function renderConditions(cities) {
+    // Group by condition
+    const groups = {};
+    cities.forEach(c => {
+      const cond = wmoToCondition(c.current.weather_code);
+      groups[cond.group] = (groups[cond.group] || 0) + 1;
+    });
+
+    const total = cities.length || 1;
+    const condColors = {
+      'Clear': 'var(--accent)',
+      'Cloudy': 'var(--text-muted)',
+      'Fog': '#9e9eb8',
+      'Rain': 'var(--blue)',
+      'Snow': '#c4dff6',
+      'Storm': 'var(--orange)'
+    };
+
+    const condEmojis = {
+      'Clear': '\u2600\ufe0f',
+      'Cloudy': '\u26c5',
+      'Fog': '\ud83c\udf2b\ufe0f',
+      'Rain': '\ud83c\udf27\ufe0f',
+      'Snow': '\ud83c\udf28\ufe0f',
+      'Storm': '\u26c8\ufe0f'
+    };
+
+    const sorted = Object.entries(groups).sort((a, b) => b[1] - a[1]);
+
+    document.getElementById('conditionsPanel').innerHTML = sorted.map(([group, count]) => `
+      <div class="cat-item">
+        <span class="cat-label">${condEmojis[group] || ''} ${group}</span>
+        <div class="cat-track">
+          <div class="cat-fill" style="width:${Math.round(count / total * 100)}%;background:${condColors[group] || 'var(--text-dim)'};"></div>
+        </div>
+        <span class="cat-count">${count}</span>
+      </div>`).join('');
+  }
+
+  // ── Helpers ──
+  function escHtml(str) {
+    return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // ── Init ──
+  loadAll();
+  setInterval(loadAll, 60000);
+</script>
+
+</body>
+</html>

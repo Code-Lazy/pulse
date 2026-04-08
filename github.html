@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GitHub Trending — Pulse</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── Stat row ── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 2rem;
+    }
+    @media (max-width: 700px) { .stats-row { grid-template-columns: repeat(2,1fr); } }
+
+    /* ── Main layout ── */
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 24px;
+      align-items: start;
+    }
+    @media (max-width: 900px) { .content-grid { grid-template-columns: 1fr; } }
+
+    /* ── Repo list ── */
+    .repo-list { display: flex; flex-direction: column; gap: 2px; }
+
+    .repo-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 14px 16px;
+      border-radius: var(--radius);
+      border: 1px solid transparent;
+      transition: all 0.15s;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .repo-item:hover {
+      background: var(--bg2);
+      border-color: var(--border);
+    }
+
+    .repo-rank {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-dim);
+      min-width: 24px;
+      padding-top: 2px;
+      text-align: right;
+    }
+
+    .repo-rank.top3 { color: var(--accent); }
+
+    .repo-body { flex: 1; min-width: 0; }
+
+    .repo-name {
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.4;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .repo-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.4;
+      margin-bottom: 6px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .repo-meta {
+      display: flex; flex-wrap: wrap; gap: 10px;
+      align-items: center;
+    }
+
+    .repo-stars {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+      display: flex; align-items: center; gap: 3px;
+    }
+
+    .repo-forks {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .repo-lang {
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex; align-items: center; gap: 4px;
+    }
+
+    .lang-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .repo-age {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .repo-bar-wrap {
+      width: 48px;
+      display: flex; flex-direction: column;
+      align-items: flex-end; justify-content: center;
+      gap: 4px;
+      padding-top: 2px;
+    }
+
+    .repo-bar {
+      height: 3px;
+      background: var(--accent);
+      border-radius: 2px;
+      opacity: 0.5;
+      transition: width 0.6s ease;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar { display: flex; flex-direction: column; gap: 20px; }
+
+    .panel {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+    }
+
+    .panel-title {
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+
+    /* Category bars */
+    .cat-item {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 10px;
+    }
+    .cat-label { font-size: 12px; color: var(--text-muted); min-width: 70px; }
+    .cat-track { flex: 1; height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+    .cat-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.8s ease; }
+    .cat-count { font-size: 11px; color: var(--text-dim); min-width: 20px; text-align: right; }
+
+    /* Top starred list */
+    .top-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .top-item:last-child { border-bottom: none; }
+    .top-name {
+      font-size: 13px;
+      color: var(--text);
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+      min-width: 0;
+    }
+    .top-stars {
+      font-size: 12px;
+      color: var(--accent);
+      font-weight: 600;
+      margin-left: 12px;
+      white-space: nowrap;
+    }
+
+    /* Update indicator */
+    .update-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    .update-time {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Skeleton rows */
+    .sk-row {
+      display: flex; gap: 14px; padding: 14px 16px; align-items: center;
+    }
+    .sk-num { width: 20px; height: 14px; }
+    .sk-body { flex: 1; }
+    .sk-line { height: 12px; margin-bottom: 6px; }
+    .sk-line.short { width: 55%; }
+
+    /* Error state */
+    .error-state {
+      text-align: center; padding: 3rem 1rem;
+      color: var(--text-muted); font-size: 14px;
+    }
+    .error-state .err-icon { font-size: 32px; margin-bottom: 8px; opacity: 0.4; }
+
+    /* Filters */
+    .filters {
+      display: flex; gap: 8px; flex-wrap: wrap;
+      margin-bottom: 1.25rem;
+    }
+
+    .filter-btn {
+      font-family: var(--font-body);
+      font-size: 12px; font-weight: 500;
+      padding: 5px 12px;
+      border-radius: 100px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .filter-btn:hover { border-color: var(--border-hover); color: var(--text); }
+    .filter-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">Pulse<span>.</span></a>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="news.html">News</a></li>
+    <li><a href="earthquakes.html">Earthquakes</a></li>
+    <li><a href="stocks.html">Stocks</a></li>
+    <li><a href="space.html">Space</a></li>
+    <li><a href="github.html" class="active">GitHub</a></li>
+    <li><a href="weather.html">Weather</a></li>
+  </ul>
+</nav>
+
+<div class="page">
+
+  <div class="dash-header">
+    <div>
+      <h1 class="dash-title">GitHub Trending</h1>
+      <p class="dash-subtitle">Trending repositories right now</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span class="live-badge"><span class="live-dot"></span> Live</span>
+      <button class="btn" id="refreshBtn" onclick="loadAll()">&#8635; Refresh</button>
+    </div>
+  </div>
+
+  <!-- Stat cards -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Repos tracked</div>
+      <div class="stat-value" id="stat-count">&mdash;</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total stars</div>
+      <div class="stat-value" id="stat-stars">&mdash;</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Top starred</div>
+      <div class="stat-value" id="stat-top">&mdash;</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Last updated</div>
+      <div class="stat-value" id="stat-time" style="font-size:18px">&mdash;</div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters" id="filters">
+    <button class="filter-btn active" data-filter="all" onclick="setFilter('all', this)">All</button>
+    <button class="filter-btn" data-filter="today" onclick="setFilter('today', this)">Today</button>
+    <button class="filter-btn" data-filter="week" onclick="setFilter('week', this)">This week</button>
+    <button class="filter-btn" data-filter="1k" onclick="setFilter('1k', this)">1K+ stars</button>
+    <button class="filter-btn" data-filter="JavaScript" onclick="setFilter('JavaScript', this)">JavaScript</button>
+    <button class="filter-btn" data-filter="Python" onclick="setFilter('Python', this)">Python</button>
+    <button class="filter-btn" data-filter="TypeScript" onclick="setFilter('TypeScript', this)">TypeScript</button>
+    <button class="filter-btn" data-filter="Rust" onclick="setFilter('Rust', this)">Rust</button>
+  </div>
+
+  <div class="content-grid">
+
+    <!-- Repo feed -->
+    <div>
+      <div class="update-row">
+        <span id="visibleCount" class="update-time"></span>
+      </div>
+      <div class="repo-list" id="repoList">
+        <!-- skeleton placeholder rendered by JS -->
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+
+      <div class="panel">
+        <div class="panel-title">Language breakdown</div>
+        <div id="langBreakdown">
+          <div style="color:var(--text-muted);font-size:13px;">Loading...</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Most starred</div>
+        <div id="topStarred">
+          <div style="color:var(--text-muted);font-size:13px;">Loading...</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">About this feed</div>
+        <p style="font-size:13px;color:var(--text-muted);line-height:1.6;">
+          Repositories are fetched live from the
+          <a href="https://github.com" target="_blank" style="color:var(--accent);">GitHub</a>
+          search API. The top 30 recently created repos are ranked by star count.
+          Auto-refreshes every 60 seconds.
+        </p>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  Pulse &mdash; GitHub data via <a href="https://docs.github.com/en/rest" target="_blank" style="color:var(--text-muted);">GitHub REST API</a>
+</footer>
+
+<script>
+  let allRepos = [];
+  let currentFilter = 'all';
+
+  // Language colors (GitHub-style)
+  const LANG_COLORS = {
+    'JavaScript': '#f1e05a',
+    'TypeScript': '#3178c6',
+    'Python': '#3572A5',
+    'Rust': '#dea584',
+    'Go': '#00ADD8',
+    'Java': '#b07219',
+    'C++': '#f34b7d',
+    'C': '#555555',
+    'C#': '#178600',
+    'Ruby': '#701516',
+    'Swift': '#F05138',
+    'Kotlin': '#A97BFF',
+    'PHP': '#4F5D95',
+    'Dart': '#00B4AB',
+    'Shell': '#89e051',
+    'Lua': '#000080',
+    'HTML': '#e34c26',
+    'CSS': '#563d7c',
+    'Vue': '#41b883',
+    'Jupyter Notebook': '#DA5B0B',
+    'Zig': '#ec915c',
+    'Scala': '#c22d40',
+    'Elixir': '#6e4a7e',
+    'Haskell': '#5e5086'
+  };
+
+  function getDateStr(daysAgo) {
+    return new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  }
+
+  async function fetchRepos() {
+    const since = getDateStr(7);
+    const url = `https://api.github.com/search/repositories?q=created:>${since}&sort=stars&order=desc&per_page=30`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`GitHub API returned ${res.status}`);
+    const data = await res.json();
+    return data.items || [];
+  }
+
+  async function loadAll() {
+    document.getElementById('repoList').innerHTML = skeletons(10);
+
+    try {
+      const repos = await fetchRepos();
+      allRepos = repos;
+      renderAll();
+    } catch (e) {
+      document.getElementById('repoList').innerHTML = `
+        <div class="error-state">
+          <div class="err-icon">&#9888;</div>
+          <div>Couldn't load repositories. Check your connection or try again later.</div>
+          <div style="margin-top:6px;font-size:12px;color:var(--text-dim);">${escHtml(e.message)}</div>
+        </div>`;
+    }
+  }
+
+  function skeletons(n) {
+    return Array.from({length: n}, () => `
+      <div class="sk-row">
+        <div class="sk-num skeleton" style="height:14px;width:20px;border-radius:3px;"></div>
+        <div class="sk-body" style="flex:1;">
+          <div class="sk-line skeleton" style="height:12px;margin-bottom:6px;border-radius:3px;"></div>
+          <div class="sk-line short skeleton" style="height:10px;width:50%;border-radius:3px;"></div>
+        </div>
+      </div>`).join('');
+  }
+
+  function getFilter(repo) {
+    if (currentFilter === 'all') return true;
+    if (currentFilter === 'today') {
+      const todayStr = getDateStr(0);
+      return (repo.created_at || '').startsWith(todayStr);
+    }
+    if (currentFilter === 'week') {
+      const weekAgo = getDateStr(7);
+      return (repo.created_at || '') >= weekAgo;
+    }
+    if (currentFilter === '1k') return (repo.stargazers_count || 0) >= 1000;
+    // Language filters
+    return (repo.language || '') === currentFilter;
+  }
+
+  function daysAgo(dateStr) {
+    const created = new Date(dateStr);
+    const diff = Date.now() - created.getTime();
+    const days = Math.floor(diff / (24 * 60 * 60 * 1000));
+    if (days === 0) return 'today';
+    if (days === 1) return '1 day ago';
+    return `${days} days ago`;
+  }
+
+  function formatNum(n) {
+    if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+    return n.toLocaleString();
+  }
+
+  function renderAll() {
+    const filtered = allRepos.filter(getFilter);
+    const maxStars = Math.max(...filtered.map(r => r.stargazers_count || 0), 1);
+
+    // Stats
+    const totalStars = allRepos.reduce((s, r) => s + (r.stargazers_count || 0), 0);
+    const topStars = Math.max(...allRepos.map(r => r.stargazers_count || 0), 0);
+    document.getElementById('stat-count').textContent = allRepos.length;
+    document.getElementById('stat-stars').textContent = formatNum(totalStars);
+    document.getElementById('stat-top').textContent = formatNum(topStars);
+    document.getElementById('stat-time').textContent = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    document.getElementById('visibleCount').textContent = `Showing ${filtered.length} repositories`;
+
+    // Repo list
+    document.getElementById('repoList').innerHTML = filtered.length === 0
+      ? `<div class="error-state"><div style="opacity:0.4;font-size:28px;margin-bottom:8px;">&#128269;</div><div>No repositories match this filter.</div></div>`
+      : filtered.map((r, i) => {
+      const barW = Math.round((r.stargazers_count || 0) / maxStars * 100);
+      const langColor = LANG_COLORS[r.language] || '#7a7a82';
+      return `
+        <a class="repo-item" href="${r.html_url}" target="_blank" rel="noopener">
+          <div class="repo-rank ${i < 3 ? 'top3' : ''}">${i + 1}</div>
+          <div class="repo-body">
+            <div class="repo-name">${escHtml(r.full_name)}</div>
+            ${r.description ? `<div class="repo-desc">${escHtml(r.description)}</div>` : ''}
+            <div class="repo-meta">
+              <span class="repo-stars">&#9733; ${formatNum(r.stargazers_count || 0)}</span>
+              <span class="repo-forks">&#128268; ${formatNum(r.forks_count || 0)}</span>
+              ${r.language ? `<span class="repo-lang"><span class="lang-dot" style="background:${langColor};"></span>${escHtml(r.language)}</span>` : ''}
+              <span class="repo-age">${daysAgo(r.created_at)}</span>
+            </div>
+          </div>
+          <div class="repo-bar-wrap">
+            <div class="repo-bar" style="width:${barW}%;max-width:48px;"></div>
+          </div>
+        </a>`;
+    }).join('');
+
+    renderLangBreakdown(filtered);
+    renderTopStarred(filtered);
+  }
+
+  function renderLangBreakdown(repos) {
+    const freq = {};
+    repos.forEach(r => {
+      const lang = r.language || 'Other';
+      freq[lang] = (freq[lang] || 0) + 1;
+    });
+
+    const sorted = Object.entries(freq)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8);
+
+    const total = repos.length || 1;
+    document.getElementById('langBreakdown').innerHTML = sorted.map(([lang, count]) => {
+      const color = LANG_COLORS[lang] || '#7a7a82';
+      return `
+        <div class="cat-item">
+          <span class="cat-label">${escHtml(lang)}</span>
+          <div class="cat-track">
+            <div class="cat-fill" style="width:${Math.round(count / total * 100)}%;background:${color};"></div>
+          </div>
+          <span class="cat-count">${count}</span>
+        </div>`;
+    }).join('');
+  }
+
+  function renderTopStarred(repos) {
+    const top5 = [...repos]
+      .sort((a, b) => (b.stargazers_count || 0) - (a.stargazers_count || 0))
+      .slice(0, 5);
+
+    document.getElementById('topStarred').innerHTML = top5.map(r => `
+      <a href="${r.html_url}" target="_blank" rel="noopener" class="top-item" style="text-decoration:none;color:inherit;">
+        <span class="top-name">${escHtml(r.full_name)}</span>
+        <span class="top-stars">&#9733; ${formatNum(r.stargazers_count || 0)}</span>
+      </a>`).join('');
+  }
+
+  function setFilter(f, btn) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (allRepos.length) renderAll();
+  }
+
+  function escHtml(str) {
+    return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // Initial load + auto-refresh every 60s
+  loadAll();
+  setInterval(loadAll, 60000);
+</script>
+
+</body>
+</html>

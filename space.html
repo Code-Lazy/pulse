@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Space — Pulse</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    /* ── Stat row ── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 2rem;
+    }
+    @media (max-width: 700px) { .stats-row { grid-template-columns: repeat(2,1fr); } }
+
+    /* ── Map ── */
+    .map-wrap {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 2rem;
+      position: relative;
+    }
+
+    #map {
+      height: 400px;
+      width: 100%;
+      background: var(--bg2);
+    }
+
+    .leaflet-container { background: #0d0d0f; }
+
+    .map-legend {
+      position: absolute;
+      bottom: 16px;
+      right: 16px;
+      z-index: 1000;
+      background: rgba(13,13,15,0.9);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .legend-row:last-child { margin-bottom: 0; }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ── Main layout ── */
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 24px;
+      align-items: start;
+    }
+    @media (max-width: 900px) { .content-grid { grid-template-columns: 1fr; } }
+
+    /* ── Astronaut list ── */
+    .event-list { display: flex; flex-direction: column; gap: 2px; }
+
+    .event-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 14px 16px;
+      border-radius: var(--radius);
+      border: 1px solid transparent;
+      transition: all 0.15s;
+    }
+
+    .event-item:hover {
+      background: var(--bg2);
+      border-color: var(--border);
+    }
+
+    .event-mag {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 700;
+      min-width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      flex-shrink: 0;
+      background: rgba(77,166,255,0.12);
+      color: var(--blue);
+    }
+
+    .event-body { flex: 1; min-width: 0; }
+
+    .event-title {
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.4;
+      color: var(--text);
+      margin-bottom: 5px;
+    }
+
+    .event-meta {
+      display: flex; flex-wrap: wrap; gap: 10px;
+      align-items: center;
+    }
+
+    .event-craft {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex; align-items: center; gap: 3px;
+    }
+
+    .event-role {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .event-type-tag {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 100px;
+      background: var(--accent-dim);
+      color: var(--accent);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar { display: flex; flex-direction: column; gap: 20px; }
+
+    .panel {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+    }
+
+    .panel-title {
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+
+    /* ISS detail rows */
+    .iss-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .iss-row:last-child { border-bottom: none; }
+    .iss-label { font-size: 13px; color: var(--text-muted); }
+    .iss-val { font-size: 13px; color: var(--text); font-weight: 500; font-family: var(--font-display); }
+
+    /* APOD */
+    .apod-img {
+      width: 100%;
+      border-radius: var(--radius-sm);
+      margin-bottom: 12px;
+      display: block;
+    }
+    .apod-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .apod-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* Update indicator */
+    .update-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    .update-time {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Skeleton rows */
+    .sk-row {
+      display: flex; gap: 14px; padding: 14px 16px; align-items: center;
+    }
+    .sk-mag { width: 48px; height: 48px; border-radius: var(--radius-sm); }
+    .sk-body { flex: 1; }
+    .sk-line { height: 12px; margin-bottom: 6px; }
+    .sk-line.short { width: 55%; }
+
+    /* Error state */
+    .error-state {
+      text-align: center; padding: 3rem 1rem;
+      color: var(--text-muted); font-size: 14px;
+    }
+    .error-state .err-icon { font-size: 32px; margin-bottom: 8px; opacity: 0.4; }
+
+    /* Leaflet popup dark theme */
+    .leaflet-popup-content-wrapper {
+      background: var(--bg2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    }
+    .leaflet-popup-tip { background: var(--bg2); }
+    .leaflet-popup-content { font-family: var(--font-body); font-size: 13px; line-height: 1.5; margin: 10px 14px; }
+    .leaflet-popup-content strong { font-family: var(--font-display); font-weight: 700; }
+    .leaflet-popup-close-button { color: var(--text-muted) !important; }
+
+    /* ISS marker */
+    .iss-icon {
+      background: none;
+      border: none;
+    }
+
+    /* Orbit path */
+    .orbit-path {
+      stroke: var(--accent);
+      stroke-opacity: 0.35;
+      stroke-dasharray: 6 4;
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">Pulse<span>.</span></a>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="news.html">News</a></li>
+    <li><a href="earthquakes.html">Earthquakes</a></li>
+    <li><a href="stocks.html">Stocks</a></li>
+    <li><a href="space.html" class="active">Space</a></li>
+    <li><a href="github.html">GitHub</a></li>
+    <li><a href="weather.html">Weather</a></li>
+  </ul>
+</nav>
+
+<div class="page">
+
+  <div class="dash-header">
+    <div>
+      <h1 class="dash-title">Space</h1>
+      <p class="dash-subtitle">ISS tracking & astronaut data — live from orbit</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span class="live-badge"><span class="live-dot"></span> Live</span>
+      <button class="btn" id="refreshBtn" onclick="loadAll()">&#8635; Refresh</button>
+    </div>
+  </div>
+
+  <!-- Stat cards -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Astronauts in space</div>
+      <div class="stat-value" id="stat-crew">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">ISS altitude</div>
+      <div class="stat-value" id="stat-alt">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">ISS velocity</div>
+      <div class="stat-value" id="stat-vel">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Last updated</div>
+      <div class="stat-value" id="stat-time" style="font-size:18px">—</div>
+    </div>
+  </div>
+
+  <!-- Map -->
+  <div class="map-wrap">
+    <div id="map"></div>
+    <div class="map-legend">
+      <div class="legend-row"><div class="legend-dot" style="background:#e8ff47;"></div> ISS position</div>
+      <div class="legend-row"><div class="legend-dot" style="background:rgba(232,255,71,0.35);border:1px dashed rgba(232,255,71,0.5);border-radius:0;width:14px;height:2px;"></div> Ground track</div>
+    </div>
+  </div>
+
+  <div class="content-grid">
+
+    <!-- Astronaut feed -->
+    <div>
+      <div class="update-row">
+        <span id="visibleCount" class="update-time"></span>
+      </div>
+      <div class="event-list" id="crewList">
+        <!-- skeleton placeholder -->
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+
+      <div class="panel">
+        <div class="panel-title">ISS Details</div>
+        <div id="issDetails">
+          <div style="color:var(--text-muted);font-size:13px;">Loading...</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Picture of the Day</div>
+        <div id="apodPanel">
+          <div style="color:var(--text-muted);font-size:13px;">Loading...</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">About this feed</div>
+        <p style="font-size:13px;color:var(--text-muted);line-height:1.6;">
+          ISS position from
+          <a href="https://wheretheiss.at/" target="_blank" style="color:var(--accent);">Where the ISS At?</a>.
+          Crew data via
+          <a href="https://corquaid.github.io/international-space-station-APIs/" target="_blank" style="color:var(--accent);">ISS APIs</a>.
+          Photo of the day from
+          <a href="https://apod.nasa.gov/" target="_blank" style="color:var(--accent);">NASA APOD</a>.
+        </p>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  Pulse — space data via <a href="https://wheretheiss.at/" target="_blank" style="color:var(--text-muted);">Where the ISS At?</a> &amp; <a href="https://api.nasa.gov/" target="_blank" style="color:var(--text-muted);">NASA Open APIs</a>
+</footer>
+
+<script>
+  const ISS_URL = 'https://api.wheretheiss.at/v1/satellites/25544';
+  const CREW_URL = 'https://corquaid.github.io/international-space-station-APIs/JSON/people-in-space.json';
+  const APOD_URL = 'https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY';
+
+  let map, issMarker, orbitPath;
+  let trackPoints = [];
+  let crewData = [];
+
+  // ── Init map ──
+  function initMap() {
+    map = L.map('map', {
+      center: [20, 0],
+      zoom: 2,
+      minZoom: 2,
+      zoomControl: true,
+      attributionControl: false,
+      worldCopyJump: true
+    });
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 18
+    }).addTo(map);
+
+    L.control.attribution({ prefix: false, position: 'bottomleft' })
+      .addAttribution('&copy; <a href="https://carto.com/" style="color:var(--text-dim)">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright" style="color:var(--text-dim)">OSM</a>')
+      .addTo(map);
+
+    // ISS icon
+    const issIcon = L.divIcon({
+      className: 'iss-icon',
+      html: `<svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="18" cy="18" r="16" fill="rgba(232,255,71,0.15)" stroke="#e8ff47" stroke-width="1.5"/>
+        <circle cx="18" cy="18" r="5" fill="#e8ff47"/>
+        <line x1="5" y1="18" x2="31" y2="18" stroke="#e8ff47" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="18" y1="10" x2="18" y2="26" stroke="#e8ff47" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="10" y1="13" x2="10" y2="23" stroke="#e8ff47" stroke-width="1" stroke-linecap="round"/>
+        <line x1="26" y1="13" x2="26" y2="23" stroke="#e8ff47" stroke-width="1" stroke-linecap="round"/>
+      </svg>`,
+      iconSize: [36, 36],
+      iconAnchor: [18, 18]
+    });
+
+    issMarker = L.marker([0, 0], { icon: issIcon }).addTo(map);
+    issMarker.bindPopup('Loading ISS position...');
+
+    orbitPath = L.polyline([], {
+      color: '#e8ff47',
+      weight: 2,
+      opacity: 0.35,
+      dashArray: '6 4'
+    }).addTo(map);
+  }
+
+  // ── ISS position ──
+  async function loadISS() {
+    try {
+      const res = await fetch(ISS_URL);
+      const d = await res.json();
+
+      const lat = parseFloat(d.latitude);
+      const lng = parseFloat(d.longitude);
+      const alt = parseFloat(d.altitude);
+      const vel = parseFloat(d.velocity);
+
+      issMarker.setLatLng([lat, lng]);
+      issMarker.setPopupContent(`
+        <strong>ISS</strong><br>
+        Lat: ${lat.toFixed(4)}&deg; &nbsp; Lon: ${lng.toFixed(4)}&deg;<br>
+        Alt: ${alt.toFixed(1)} km &nbsp; Vel: ${vel.toFixed(0)} km/h<br>
+        <span style="color:var(--text-muted);font-size:11px;">Updated ${new Date().toLocaleTimeString()}</span>
+      `);
+
+      // Update stats
+      document.getElementById('stat-alt').textContent = alt.toFixed(1) + ' km';
+      document.getElementById('stat-vel').textContent = vel.toFixed(0) + ' km/h';
+      document.getElementById('stat-time').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      // Update ISS details panel
+      renderISSDetails(lat, lng, alt, vel);
+
+      // Track path — keep last 200 points
+      trackPoints.push([lat, lng]);
+      if (trackPoints.length > 200) trackPoints.shift();
+
+      // Break the polyline when there's a large longitude jump (wrapping)
+      const segments = [];
+      let current = [trackPoints[0]];
+      for (let i = 1; i < trackPoints.length; i++) {
+        const prevLng = trackPoints[i - 1][1];
+        const curLng = trackPoints[i][1];
+        if (Math.abs(curLng - prevLng) > 180) {
+          segments.push(current);
+          current = [];
+        }
+        current.push(trackPoints[i]);
+      }
+      segments.push(current);
+
+      if (orbitPath) map.removeLayer(orbitPath);
+      orbitPath = L.polyline(segments, {
+        color: '#e8ff47',
+        weight: 2,
+        opacity: 0.35,
+        dashArray: '6 4'
+      }).addTo(map);
+
+    } catch (e) {
+      console.warn('ISS fetch failed', e);
+    }
+  }
+
+  function renderISSDetails(lat, lng, alt, vel) {
+    document.getElementById('issDetails').innerHTML = `
+      <div class="iss-row">
+        <span class="iss-label">Latitude</span>
+        <span class="iss-val">${lat.toFixed(4)}&deg;</span>
+      </div>
+      <div class="iss-row">
+        <span class="iss-label">Longitude</span>
+        <span class="iss-val">${lng.toFixed(4)}&deg;</span>
+      </div>
+      <div class="iss-row">
+        <span class="iss-label">Altitude</span>
+        <span class="iss-val">${alt.toFixed(1)} km</span>
+      </div>
+      <div class="iss-row">
+        <span class="iss-label">Velocity</span>
+        <span class="iss-val">${vel.toFixed(0)} km/h</span>
+      </div>
+    `;
+  }
+
+  // ── Crew data ──
+  async function loadCrew() {
+    document.getElementById('crewList').innerHTML = skeletons(6);
+
+    try {
+      const res = await fetch(CREW_URL);
+      const data = await res.json();
+      crewData = data.people || data;
+
+      document.getElementById('stat-crew').textContent = crewData.length;
+      document.getElementById('visibleCount').textContent = `${crewData.length} people currently in space`;
+
+      renderCrew();
+    } catch (e) {
+      // Fallback to open-notify
+      try {
+        const res = await fetch('http://api.open-notify.org/astros.json');
+        const data = await res.json();
+        crewData = data.people || [];
+        document.getElementById('stat-crew').textContent = data.number || crewData.length;
+        document.getElementById('visibleCount').textContent = `${crewData.length} people currently in space`;
+        renderCrew();
+      } catch (e2) {
+        document.getElementById('crewList').innerHTML = `
+          <div class="error-state">
+            <div class="err-icon">&#9888;</div>
+            <div>Couldn't load crew data. Check your connection.</div>
+          </div>`;
+      }
+    }
+  }
+
+  function renderCrew() {
+    if (!crewData.length) {
+      document.getElementById('crewList').innerHTML = `
+        <div class="error-state">
+          <div class="err-icon">&#128640;</div>
+          <div>No crew data available.</div>
+        </div>`;
+      return;
+    }
+
+    // Group by craft
+    const crafts = {};
+    crewData.forEach(p => {
+      const craft = p.craft || p.station || 'Unknown';
+      if (!crafts[craft]) crafts[craft] = [];
+      crafts[craft].push(p);
+    });
+
+    let html = '';
+    for (const [craft, members] of Object.entries(crafts)) {
+      members.forEach((p, i) => {
+        const name = escHtml(p.name);
+        const role = p.expedition_role || p.role || '';
+        const agency = p.agency || p.country_code || p.country || '';
+        const flag = p.country_code ? getFlagEmoji(p.country_code) : '';
+        const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+
+        html += `
+          <div class="event-item">
+            <div class="event-mag">${initials}</div>
+            <div class="event-body">
+              <div class="event-title">${name}</div>
+              <div class="event-meta">
+                <span class="event-craft">&#128752; ${escHtml(craft)}</span>
+                ${role ? `<span class="event-role">${escHtml(role)}</span>` : ''}
+                ${agency ? `<span class="event-type-tag">${flag} ${escHtml(agency)}</span>` : ''}
+              </div>
+            </div>
+          </div>`;
+      });
+    }
+
+    document.getElementById('crewList').innerHTML = html;
+  }
+
+  function getFlagEmoji(cc) {
+    if (!cc || cc.length !== 2) return '';
+    const code = cc.toUpperCase();
+    return String.fromCodePoint(...[...code].map(c => 0x1F1E6 + c.charCodeAt(0) - 65));
+  }
+
+  // ── NASA APOD ──
+  async function loadAPOD() {
+    try {
+      const res = await fetch(APOD_URL);
+      const d = await res.json();
+
+      if (d.media_type === 'image') {
+        document.getElementById('apodPanel').innerHTML = `
+          <a href="${escHtml(d.hdurl || d.url)}" target="_blank" rel="noopener">
+            <img class="apod-img" src="${escHtml(d.url)}" alt="${escHtml(d.title)}" loading="lazy" />
+          </a>
+          <div class="apod-title">${escHtml(d.title)}</div>
+          <div class="apod-desc">${escHtml(d.explanation)}</div>
+        `;
+      } else if (d.media_type === 'video') {
+        document.getElementById('apodPanel').innerHTML = `
+          <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:var(--radius-sm);margin-bottom:12px;">
+            <iframe src="${escHtml(d.url)}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;" allowfullscreen></iframe>
+          </div>
+          <div class="apod-title">${escHtml(d.title)}</div>
+          <div class="apod-desc">${escHtml(d.explanation)}</div>
+        `;
+      }
+    } catch (e) {
+      document.getElementById('apodPanel').innerHTML = `
+        <div style="color:var(--text-muted);font-size:13px;">Couldn't load APOD data.</div>`;
+    }
+  }
+
+  // ── Skeletons ──
+  function skeletons(n) {
+    return Array.from({ length: n }, () => `
+      <div class="sk-row">
+        <div class="sk-mag skeleton" style="width:48px;height:48px;border-radius:6px;"></div>
+        <div class="sk-body" style="flex:1;">
+          <div class="sk-line skeleton" style="height:12px;margin-bottom:6px;border-radius:3px;"></div>
+          <div class="sk-line short skeleton" style="height:10px;width:50%;border-radius:3px;"></div>
+        </div>
+      </div>`).join('');
+  }
+
+  // ── Helpers ──
+  function escHtml(str) {
+    return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // ── Load all ──
+  function loadAll() {
+    loadISS();
+    loadCrew();
+    loadAPOD();
+  }
+
+  // ── Init ──
+  initMap();
+  loadAll();
+
+  // ISS position refreshes every 5 seconds
+  setInterval(loadISS, 5000);
+
+  // Full data refresh every 60 seconds
+  setInterval(() => {
+    loadCrew();
+    loadAPOD();
+  }, 60000);
+</script>
+
+</body>
+</html>
