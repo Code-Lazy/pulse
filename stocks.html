@@ -3,8 +3,247 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Stocks — Pulse</title>
+  <title>Stocks &amp; Crypto — Pulse</title>
   <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── Stat row ── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 2rem;
+    }
+    @media (max-width: 700px) { .stats-row { grid-template-columns: repeat(2,1fr); } }
+
+    /* ── Main layout ── */
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 24px;
+      align-items: start;
+    }
+    @media (max-width: 900px) { .content-grid { grid-template-columns: 1fr; } }
+
+    /* ── Coin table ── */
+    .coin-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .coin-table th {
+      font-family: var(--font-display);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .coin-table th.right,
+    .coin-table td.right { text-align: right; }
+
+    .coin-row {
+      transition: background 0.15s;
+      cursor: pointer;
+    }
+
+    .coin-row:hover { background: var(--bg2); }
+
+    .coin-row td {
+      padding: 14px 12px;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+      vertical-align: middle;
+    }
+
+    .coin-rank {
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-dim);
+      width: 32px;
+    }
+
+    .coin-name-cell {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .coin-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .coin-name {
+      font-weight: 500;
+      color: var(--text);
+      line-height: 1.2;
+    }
+
+    .coin-symbol {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 400;
+    }
+
+    .coin-price {
+      font-family: var(--font-display);
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    .change-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 100px;
+    }
+
+    .change-badge.up {
+      background: rgba(71,217,122,0.12);
+      color: var(--green);
+    }
+
+    .change-badge.down {
+      background: rgba(255,77,77,0.12);
+      color: var(--red);
+    }
+
+    .coin-mcap {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* ── Sparkline ── */
+    .sparkline-cell { width: 120px; }
+    .sparkline-svg { display: block; }
+
+    /* ── Sidebar ── */
+    .sidebar { display: flex; flex-direction: column; gap: 20px; }
+
+    .panel {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+    }
+
+    .panel-title {
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+
+    /* Top movers */
+    .mover-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .mover-item:last-child { border-bottom: none; }
+
+    .mover-name {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; color: var(--text);
+    }
+
+    .mover-icon {
+      width: 20px; height: 20px; border-radius: 50%;
+    }
+
+    .mover-change {
+      font-size: 12px; font-weight: 600;
+    }
+
+    .mover-change.up { color: var(--green); }
+    .mover-change.down { color: var(--red); }
+
+    /* Category bars (reused pattern) */
+    .cat-item {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 10px;
+    }
+    .cat-label { font-size: 12px; color: var(--text-muted); min-width: 70px; }
+    .cat-track { flex: 1; height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+    .cat-fill { height: 100%; border-radius: 2px; transition: width 0.8s ease; }
+    .cat-count { font-size: 11px; color: var(--text-dim); min-width: 20px; text-align: right; }
+
+    /* Filters */
+    .filters {
+      display: flex; gap: 8px; flex-wrap: wrap;
+      margin-bottom: 1.25rem;
+    }
+
+    .filter-btn {
+      font-family: var(--font-body);
+      font-size: 12px; font-weight: 500;
+      padding: 5px 12px;
+      border-radius: 100px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .filter-btn:hover { border-color: var(--border-hover); color: var(--text); }
+    .filter-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+
+    /* Update indicator */
+    .update-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    .update-time {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Skeleton */
+    .sk-table-row {
+      display: flex; gap: 14px; padding: 14px 12px; align-items: center;
+      border-bottom: 1px solid var(--border);
+    }
+    .sk-circle { width: 28px; height: 28px; border-radius: 50%; }
+    .sk-body { flex: 1; }
+    .sk-line { height: 12px; margin-bottom: 6px; }
+    .sk-line.short { width: 55%; }
+
+    /* Error state */
+    .error-state {
+      text-align: center; padding: 3rem 1rem;
+      color: var(--text-muted); font-size: 14px;
+    }
+    .error-state .err-icon { font-size: 32px; margin-bottom: 8px; opacity: 0.4; }
+
+    /* Table wrapper for horizontal scroll on mobile */
+    .table-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    @media (max-width: 700px) {
+      .sparkline-cell { display: none; }
+      .mcap-col { display: none; }
+    }
+  </style>
 </head>
 <body>
 
@@ -19,15 +258,350 @@
 </nav>
 
 <div class="page">
-  <div class="coming-soon">
-    <div class="coming-soon-icon">📈</div>
-    <h2>Stocks &amp; Crypto — Coming soon</h2>
-    <p>Live prices, sparklines and 24h changes for major stocks and cryptocurrencies via CoinGecko and Alpha Vantage.</p>
-    <a href="index.html" class="btn" style="margin-top:1rem;">← Back to home</a>
+
+  <div class="dash-header">
+    <div>
+      <h1 class="dash-title">Stocks &amp; Crypto</h1>
+      <p class="dash-subtitle">Live cryptocurrency prices via CoinGecko</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span class="live-badge"><span class="live-dot"></span> Live</span>
+      <button class="btn" id="refreshBtn" onclick="loadAll()">↻ Refresh</button>
+    </div>
   </div>
+
+  <!-- Stat cards -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Coins tracked</div>
+      <div class="stat-value" id="stat-count">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total market cap</div>
+      <div class="stat-value" id="stat-mcap" style="font-size:20px">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">BTC dominance</div>
+      <div class="stat-value" id="stat-btc">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Last updated</div>
+      <div class="stat-value" id="stat-time" style="font-size:18px">—</div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters" id="filters">
+    <button class="filter-btn active" data-filter="all" onclick="setFilter('all', this)">All</button>
+    <button class="filter-btn" data-filter="gainers" onclick="setFilter('gainers', this)">Gainers</button>
+    <button class="filter-btn" data-filter="losers" onclick="setFilter('losers', this)">Losers</button>
+    <button class="filter-btn" data-filter="top10" onclick="setFilter('top10', this)">Top 10</button>
+    <button class="filter-btn" data-filter="largecap" onclick="setFilter('largecap', this)">Large cap ($10B+)</button>
+  </div>
+
+  <div class="content-grid">
+
+    <!-- Coin table -->
+    <div>
+      <div class="update-row">
+        <span id="visibleCount" class="update-time"></span>
+      </div>
+      <div class="table-wrap">
+        <table class="coin-table" id="coinTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Coin</th>
+              <th class="right">Price</th>
+              <th class="right">24h</th>
+              <th class="right mcap-col">Market Cap</th>
+              <th class="right sparkline-cell">7d Chart</th>
+            </tr>
+          </thead>
+          <tbody id="coinBody">
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+
+      <div class="panel">
+        <div class="panel-title">Top gainers (24h)</div>
+        <div id="topGainers">
+          <div style="color:var(--text-muted);font-size:13px;">Loading…</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Top losers (24h)</div>
+        <div id="topLosers">
+          <div style="color:var(--text-muted);font-size:13px;">Loading…</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Market sentiment</div>
+        <div id="sentimentPanel">
+          <div style="color:var(--text-muted);font-size:13px;">Loading…</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">About this feed</div>
+        <p style="font-size:13px;color:var(--text-muted);line-height:1.6;">
+          Prices from the
+          <a href="https://www.coingecko.com/" target="_blank" style="color:var(--accent);">CoinGecko</a>
+          free API. Top 50 cryptocurrencies by market cap, with 7-day sparklines. Auto-refreshes every 60 seconds.
+        </p>
+      </div>
+
+    </div>
+  </div>
+
 </div>
 
-<footer>Pulse — live data dashboards</footer>
+<footer>
+  Pulse — crypto data via <a href="https://www.coingecko.com/en/api" target="_blank" style="color:var(--text-muted);">CoinGecko API</a>
+</footer>
+
+<script>
+  const API_URL = 'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=true&price_change_percentage=24h';
+  const GLOBAL_URL = 'https://api.coingecko.com/api/v3/global';
+  let allCoins = [];
+  let globalData = null;
+  let currentFilter = 'all';
+
+  // ── Fetch ──
+  async function loadAll() {
+    document.getElementById('coinBody').innerHTML = skeletonRows(12);
+
+    try {
+      const [coinsRes, globalRes] = await Promise.all([
+        fetch(API_URL),
+        fetch(GLOBAL_URL)
+      ]);
+
+      allCoins = await coinsRes.json();
+      const gd = await globalRes.json();
+      globalData = gd.data || null;
+
+      renderAll();
+    } catch (e) {
+      document.getElementById('coinBody').innerHTML = `
+        <tr><td colspan="6">
+          <div class="error-state">
+            <div class="err-icon">⚠</div>
+            <div>Couldn't load market data. CoinGecko may be rate-limiting — try again in a moment.</div>
+          </div>
+        </td></tr>`;
+    }
+  }
+
+  function skeletonRows(n) {
+    return Array.from({ length: n }, () => `
+      <tr>
+        <td colspan="6">
+          <div class="sk-table-row">
+            <div class="sk-circle skeleton"></div>
+            <div class="sk-body">
+              <div class="sk-line skeleton" style="height:12px;margin-bottom:6px;border-radius:3px;"></div>
+              <div class="sk-line short skeleton" style="height:10px;width:40%;border-radius:3px;"></div>
+            </div>
+          </div>
+        </td>
+      </tr>`).join('');
+  }
+
+  // ── Filter ──
+  function applyFilter(coin, idx) {
+    const change = coin.price_change_percentage_24h || 0;
+    if (currentFilter === 'gainers') return change > 0;
+    if (currentFilter === 'losers') return change < 0;
+    if (currentFilter === 'top10') return idx < 10;
+    if (currentFilter === 'largecap') return (coin.market_cap || 0) >= 10_000_000_000;
+    return true;
+  }
+
+  function setFilter(f, btn) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (allCoins.length) renderAll();
+  }
+
+  // ── Render ──
+  function renderAll() {
+    const filtered = allCoins.filter((c, i) => applyFilter(c, i));
+
+    // Stats
+    document.getElementById('stat-count').textContent = allCoins.length;
+    document.getElementById('stat-time').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    if (globalData) {
+      const totalMcap = globalData.total_market_cap?.usd || 0;
+      document.getElementById('stat-mcap').textContent = '$' + formatCompact(totalMcap);
+      const btcDom = globalData.market_cap_percentage?.btc || 0;
+      document.getElementById('stat-btc').textContent = btcDom.toFixed(1) + '%';
+    }
+
+    document.getElementById('visibleCount').textContent = `Showing ${filtered.length} coins`;
+
+    // Table
+    document.getElementById('coinBody').innerHTML = filtered.map((coin, i) => {
+      const change = coin.price_change_percentage_24h || 0;
+      const isUp = change >= 0;
+      const price = coin.current_price || 0;
+      const mcap = coin.market_cap || 0;
+      const sparkData = coin.sparkline_in_7d?.price || [];
+      const rank = coin.market_cap_rank || (i + 1);
+
+      return `
+        <tr class="coin-row" onclick="window.open('https://www.coingecko.com/en/coins/${coin.id}','_blank')">
+          <td class="coin-rank">${rank}</td>
+          <td>
+            <div class="coin-name-cell">
+              <img class="coin-icon" src="${coin.image}" alt="${escHtml(coin.name)}" loading="lazy" />
+              <div>
+                <div class="coin-name">${escHtml(coin.name)}</div>
+                <div class="coin-symbol">${escHtml(coin.symbol)}</div>
+              </div>
+            </div>
+          </td>
+          <td class="right coin-price">${formatPrice(price)}</td>
+          <td class="right">
+            <span class="change-badge ${isUp ? 'up' : 'down'}">
+              ${isUp ? '▲' : '▼'} ${Math.abs(change).toFixed(2)}%
+            </span>
+          </td>
+          <td class="right mcap-col coin-mcap">$${formatCompact(mcap)}</td>
+          <td class="right sparkline-cell">${renderSparkline(sparkData, isUp)}</td>
+        </tr>`;
+    }).join('');
+
+    // Sidebar
+    renderTopMovers();
+    renderSentiment();
+  }
+
+  function renderSparkline(data, isUp) {
+    if (!data.length) return '';
+
+    // Sample down to ~30 points
+    const step = Math.max(1, Math.floor(data.length / 30));
+    const sampled = data.filter((_, i) => i % step === 0);
+    if (sampled.length < 2) return '';
+
+    const min = Math.min(...sampled);
+    const max = Math.max(...sampled);
+    const range = max - min || 1;
+    const w = 110;
+    const h = 32;
+    const padY = 2;
+
+    const points = sampled.map((v, i) => {
+      const x = (i / (sampled.length - 1)) * w;
+      const y = padY + (1 - (v - min) / range) * (h - padY * 2);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+
+    const color = isUp ? 'var(--green)' : 'var(--red)';
+    return `<svg class="sparkline-svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+      <polyline fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" points="${points}" />
+    </svg>`;
+  }
+
+  function renderTopMovers() {
+    const sorted = [...allCoins].sort((a, b) => (b.price_change_percentage_24h || 0) - (a.price_change_percentage_24h || 0));
+    const gainers = sorted.slice(0, 5);
+    const losers = sorted.slice(-5).reverse();
+
+    document.getElementById('topGainers').innerHTML = gainers.map(c => moverHtml(c)).join('');
+    document.getElementById('topLosers').innerHTML = losers.map(c => moverHtml(c)).join('');
+  }
+
+  function moverHtml(coin) {
+    const change = coin.price_change_percentage_24h || 0;
+    const isUp = change >= 0;
+    return `
+      <div class="mover-item">
+        <div class="mover-name">
+          <img class="mover-icon" src="${coin.image}" alt="" loading="lazy" />
+          <span>${escHtml(coin.symbol.toUpperCase())}</span>
+        </div>
+        <span class="mover-change ${isUp ? 'up' : 'down'}">
+          ${isUp ? '▲' : '▼'} ${Math.abs(change).toFixed(2)}%
+        </span>
+      </div>`;
+  }
+
+  function renderSentiment() {
+    if (!allCoins.length) return;
+
+    const gainers = allCoins.filter(c => (c.price_change_percentage_24h || 0) > 0).length;
+    const losers = allCoins.filter(c => (c.price_change_percentage_24h || 0) < 0).length;
+    const neutral = allCoins.length - gainers - losers;
+    const total = allCoins.length || 1;
+    const gainerPct = Math.round(gainers / total * 100);
+
+    let sentiment, sentColor;
+    if (gainerPct >= 65) { sentiment = 'Bullish'; sentColor = 'var(--green)'; }
+    else if (gainerPct >= 45) { sentiment = 'Neutral'; sentColor = 'var(--orange)'; }
+    else { sentiment = 'Bearish'; sentColor = 'var(--red)'; }
+
+    document.getElementById('sentimentPanel').innerHTML = `
+      <div style="text-align:center;margin-bottom:1rem;">
+        <div style="font-family:var(--font-display);font-size:24px;font-weight:700;color:${sentColor};letter-spacing:-0.03em;">${sentiment}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${gainerPct}% of coins are up</div>
+      </div>
+      <div class="cat-item">
+        <span class="cat-label">Gainers</span>
+        <div class="cat-track">
+          <div class="cat-fill" style="width:${Math.round(gainers/total*100)}%;background:var(--green);"></div>
+        </div>
+        <span class="cat-count">${gainers}</span>
+      </div>
+      <div class="cat-item">
+        <span class="cat-label">Losers</span>
+        <div class="cat-track">
+          <div class="cat-fill" style="width:${Math.round(losers/total*100)}%;background:var(--red);"></div>
+        </div>
+        <span class="cat-count">${losers}</span>
+      </div>
+      ${neutral > 0 ? `
+      <div class="cat-item">
+        <span class="cat-label">Flat</span>
+        <div class="cat-track">
+          <div class="cat-fill" style="width:${Math.round(neutral/total*100)}%;background:var(--text-dim);"></div>
+        </div>
+        <span class="cat-count">${neutral}</span>
+      </div>` : ''}`;
+  }
+
+  // ── Helpers ──
+  function formatPrice(n) {
+    if (n >= 1) return '$' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (n >= 0.01) return '$' + n.toFixed(4);
+    return '$' + n.toFixed(6);
+  }
+
+  function formatCompact(n) {
+    if (n >= 1e12) return (n / 1e12).toFixed(2) + 'T';
+    if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+    if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+    if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+    return n.toFixed(0);
+  }
+
+  function escHtml(str) {
+    return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // ── Init ──
+  loadAll();
+  setInterval(loadAll, 60000);
+</script>
 
 </body>
 </html>
