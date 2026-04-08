@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pulse — Live Data Dashboards</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .hero {
+      min-height: calc(100vh - 56px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 88px 2rem 4rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--text-muted);
+      margin-bottom: 1.5rem;
+    }
+
+    .hero-eyebrow::before {
+      content: '';
+      display: block; width: 24px; height: 1px;
+      background: var(--accent);
+    }
+
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: clamp(48px, 8vw, 96px);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 0.95;
+      margin-bottom: 1.5rem;
+    }
+
+    .hero-title .accent { color: var(--accent); }
+
+    .hero-desc {
+      font-size: 17px;
+      color: var(--text-muted);
+      max-width: 480px;
+      line-height: 1.7;
+      margin-bottom: 3rem;
+      font-weight: 300;
+    }
+
+    .hero-desc em {
+      color: var(--text);
+      font-style: normal;
+      font-weight: 400;
+    }
+
+    /* Dashboard grid */
+    .dashboards-section {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 2rem 6rem;
+    }
+
+    .section-heading {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+      display: flex; align-items: center; gap: 12px;
+    }
+
+    .section-heading::after {
+      content: '';
+      flex: 1; height: 1px;
+      background: var(--border);
+    }
+
+    .dash-card {
+      position: relative;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem;
+      display: flex; flex-direction: column;
+      transition: all 0.25s;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .dash-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--card-accent, transparent);
+      transition: opacity 0.2s;
+    }
+
+    .dash-card:hover {
+      border-color: var(--border-hover);
+      background: var(--bg3);
+      transform: translateY(-2px);
+    }
+
+    .dash-card.live { --card-accent: var(--accent); }
+    .dash-card.coming { opacity: 0.55; cursor: default; }
+    .dash-card.coming:hover { transform: none; }
+
+    .dash-card-icon {
+      font-size: 28px;
+      margin-bottom: 1rem;
+      line-height: 1;
+    }
+
+    .dash-card-title {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 6px;
+    }
+
+    .dash-card-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      flex: 1;
+      margin-bottom: 1.25rem;
+    }
+
+    .dash-card-footer {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    .status-live {
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--accent);
+      display: flex; align-items: center; gap: 5px;
+    }
+
+    .status-live::before {
+      content: '';
+      width: 5px; height: 5px; border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s infinite;
+    }
+
+    .status-coming {
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .arrow {
+      width: 28px; height: 28px;
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; color: var(--text-muted);
+      transition: all 0.2s;
+    }
+
+    .dash-card:hover .arrow {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .sources-row {
+      display: flex; gap: 6px; flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    /* Stats bar */
+    .stats-bar {
+      display: flex; gap: 3rem;
+      margin-bottom: 2rem;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .stats-bar-item {}
+    .stats-bar-value {
+      font-family: var(--font-display);
+      font-size: 28px; font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--accent);
+    }
+    .stats-bar-label {
+      font-size: 12px; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+
+    @media (max-width: 700px) {
+      .hero { padding: 88px 1rem 3rem; }
+      .dashboards-section { padding: 0 1rem 4rem; }
+      .stats-bar { gap: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">Pulse<span>.</span></a>
+  <ul class="nav-links">
+    <li><a href="index.html" class="active">Home</a></li>
+    <li><a href="news.html">News</a></li>
+    <li><a href="earthquakes.html">Earthquakes</a></li>
+    <li><a href="stocks.html">Stocks</a></li>
+  </ul>
+</nav>
+
+<section class="hero">
+  <span class="hero-eyebrow">Real-time data, beautifully presented</span>
+  <h1 class="hero-title">The world,<br>live <span class="accent">.</span></h1>
+  <p class="hero-desc">
+    <em>Pulse</em> pulls live data from across the internet and turns it into
+    clear, beautiful dashboards — updated automatically, no refreshing required.
+  </p>
+  <div>
+    <a href="news.html" class="btn btn-accent">Open news tracker →</a>
+  </div>
+</section>
+
+<section class="dashboards-section">
+
+  <div class="stats-bar">
+    <div class="stats-bar-item">
+      <div class="stats-bar-value">2</div>
+      <div class="stats-bar-label">Live dashboards</div>
+    </div>
+    <div class="stats-bar-item">
+      <div class="stats-bar-value">2</div>
+      <div class="stats-bar-label">Coming soon</div>
+    </div>
+    <div class="stats-bar-item">
+      <div class="stats-bar-value">60s</div>
+      <div class="stats-bar-label">Refresh rate</div>
+    </div>
+  </div>
+
+  <p class="section-heading">Dashboards</p>
+
+  <div class="grid-auto">
+
+    <a href="news.html" class="dash-card live">
+      <div class="dash-card-icon">📰</div>
+      <div class="dash-card-title">Trending News</div>
+      <p class="dash-card-desc">Top stories from Hacker News right now — scores, comments, trending topics and live ranking.</p>
+      <div class="sources-row">
+        <span class="tag">Hacker News API</span>
+        <span class="tag">Live</span>
+      </div>
+      <hr />
+      <div class="dash-card-footer">
+        <span class="status-live">Live now</span>
+        <div class="arrow">→</div>
+      </div>
+    </a>
+
+    <a href="earthquakes.html" class="dash-card live">
+      <div class="dash-card-icon">🌍</div>
+      <div class="dash-card-title">Earthquakes</div>
+      <p class="dash-card-desc">Real-time seismic events worldwide — magnitude, depth and location on an interactive map.</p>
+      <div class="sources-row">
+        <span class="tag">USGS API</span>
+        <span class="tag">Live</span>
+      </div>
+      <hr />
+      <div class="dash-card-footer">
+        <span class="status-live">Live now</span>
+        <div class="arrow">→</div>
+      </div>
+    </a>
+
+    <div class="dash-card coming">
+      <div class="dash-card-icon">📈</div>
+      <div class="dash-card-title">Stocks &amp; Crypto</div>
+      <p class="dash-card-desc">Live prices, 24h changes and sparklines for major stocks and cryptocurrencies.</p>
+      <div class="sources-row">
+        <span class="tag">CoinGecko API</span>
+        <span class="tag">Alpha Vantage</span>
+      </div>
+      <hr />
+      <div class="dash-card-footer">
+        <span class="status-coming">Coming soon</span>
+      </div>
+    </div>
+
+    <div class="dash-card coming">
+      <div class="dash-card-icon">💼</div>
+      <div class="dash-card-title">Job Market Pulse</div>
+      <p class="dash-card-desc">Track which skills and roles are rising across job boards week over week.</p>
+      <div class="sources-row">
+        <span class="tag">RemoteOK API</span>
+        <span class="tag">HN Jobs</span>
+      </div>
+      <hr />
+      <div class="dash-card-footer">
+        <span class="status-coming">Coming soon</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<footer>
+  Pulse — live data dashboards &nbsp;·&nbsp; Data refreshes every 60 seconds &nbsp;·&nbsp; Built with public APIs
+</footer>
+
+</body>
+</html>

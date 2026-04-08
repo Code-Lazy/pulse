@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trending News — Pulse</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── Stat row ── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 2rem;
+    }
+    @media (max-width: 700px) { .stats-row { grid-template-columns: repeat(2,1fr); } }
+
+    /* ── Main layout ── */
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 24px;
+      align-items: start;
+    }
+    @media (max-width: 900px) { .content-grid { grid-template-columns: 1fr; } }
+
+    /* ── Story list ── */
+    .story-list { display: flex; flex-direction: column; gap: 2px; }
+
+    .story-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 14px 16px;
+      border-radius: var(--radius);
+      border: 1px solid transparent;
+      transition: all 0.15s;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .story-item:hover {
+      background: var(--bg2);
+      border-color: var(--border);
+    }
+
+    .story-rank {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-dim);
+      min-width: 24px;
+      padding-top: 2px;
+      text-align: right;
+    }
+
+    .story-rank.top3 { color: var(--accent); }
+
+    .story-body { flex: 1; min-width: 0; }
+
+    .story-title {
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.4;
+      color: var(--text);
+      margin-bottom: 5px;
+    }
+
+    .story-meta {
+      display: flex; flex-wrap: wrap; gap: 10px;
+      align-items: center;
+    }
+
+    .story-score {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+      display: flex; align-items: center; gap: 3px;
+    }
+
+    .story-comments {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .story-domain {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .story-bar-wrap {
+      width: 48px;
+      display: flex; flex-direction: column;
+      align-items: flex-end; justify-content: center;
+      gap: 4px;
+      padding-top: 2px;
+    }
+
+    .story-bar {
+      height: 3px;
+      background: var(--accent);
+      border-radius: 2px;
+      opacity: 0.5;
+      transition: width 0.6s ease;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar { display: flex; flex-direction: column; gap: 20px; }
+
+    .panel {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+    }
+
+    .panel-title {
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+
+    /* Word cloud */
+    .word-cloud {
+      display: flex; flex-wrap: wrap; gap: 6px;
+    }
+
+    .word-item {
+      padding: 4px 10px;
+      border-radius: 100px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      cursor: default;
+      transition: all 0.15s;
+      font-weight: 400;
+      color: var(--text);
+    }
+
+    .word-item:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Category bars */
+    .cat-item {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 10px;
+    }
+    .cat-label { font-size: 12px; color: var(--text-muted); min-width: 70px; }
+    .cat-track { flex: 1; height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+    .cat-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.8s ease; }
+    .cat-count { font-size: 11px; color: var(--text-dim); min-width: 20px; text-align: right; }
+
+    /* Update indicator */
+    .update-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    .update-time {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Skeleton rows */
+    .sk-row {
+      display: flex; gap: 14px; padding: 14px 16px; align-items: center;
+    }
+    .sk-num { width: 20px; height: 14px; }
+    .sk-body { flex: 1; }
+    .sk-line { height: 12px; margin-bottom: 6px; }
+    .sk-line.short { width: 55%; }
+
+    /* Error state */
+    .error-state {
+      text-align: center; padding: 3rem 1rem;
+      color: var(--text-muted); font-size: 14px;
+    }
+    .error-state .err-icon { font-size: 32px; margin-bottom: 8px; opacity: 0.4; }
+
+    /* Filters */
+    .filters {
+      display: flex; gap: 8px; flex-wrap: wrap;
+      margin-bottom: 1.25rem;
+    }
+
+    .filter-btn {
+      font-family: var(--font-body);
+      font-size: 12px; font-weight: 500;
+      padding: 5px 12px;
+      border-radius: 100px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .filter-btn:hover { border-color: var(--border-hover); color: var(--text); }
+    .filter-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">Pulse<span>.</span></a>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="news.html" class="active">News</a></li>
+    <li><a href="earthquakes.html">Earthquakes</a></li>
+    <li><a href="stocks.html">Stocks</a></li>
+  </ul>
+</nav>
+
+<div class="page">
+
+  <div class="dash-header">
+    <div>
+      <h1 class="dash-title">Trending News</h1>
+      <p class="dash-subtitle">Top stories on Hacker News right now</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span class="live-badge"><span class="live-dot"></span> Live</span>
+      <button class="btn" id="refreshBtn" onclick="loadAll()">↻ Refresh</button>
+    </div>
+  </div>
+
+  <!-- Stat cards -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Stories loaded</div>
+      <div class="stat-value" id="stat-count">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Avg score</div>
+      <div class="stat-value" id="stat-avg">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Top score</div>
+      <div class="stat-value" id="stat-top">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Last updated</div>
+      <div class="stat-value" id="stat-time" style="font-size:18px">—</div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters" id="filters">
+    <button class="filter-btn active" data-filter="all" onclick="setFilter('all', this)">All</button>
+    <button class="filter-btn" data-filter="ask" onclick="setFilter('ask', this)">Ask HN</button>
+    <button class="filter-btn" data-filter="show" onclick="setFilter('show', this)">Show HN</button>
+    <button class="filter-btn" data-filter="high" onclick="setFilter('high', this)">High score (500+)</button>
+  </div>
+
+  <div class="content-grid">
+
+    <!-- Story feed -->
+    <div>
+      <div class="update-row">
+        <span id="visibleCount" class="update-time"></span>
+      </div>
+      <div class="story-list" id="storyList">
+        <!-- skeleton -->
+        ${Array.from({length: 8}, (_, i) => `
+        <div class="sk-row">
+          <div class="sk-num skeleton"></div>
+          <div class="sk-body">
+            <div class="sk-line skeleton"></div>
+            <div class="sk-line short skeleton"></div>
+          </div>
+        </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+
+      <div class="panel">
+        <div class="panel-title">Trending words</div>
+        <div class="word-cloud" id="wordCloud">
+          <div style="color:var(--text-muted);font-size:13px;">Loading…</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Topic breakdown</div>
+        <div id="catBreakdown">
+          <div style="color:var(--text-muted);font-size:13px;">Loading…</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">About this feed</div>
+        <p style="font-size:13px;color:var(--text-muted);line-height:1.6;">
+          Stories are fetched live from the
+          <a href="https://news.ycombinator.com" target="_blank" style="color:var(--accent);">Hacker News</a>
+          public API. The top 30 stories are loaded and ranked by current score.
+          Auto-refreshes every 60 seconds.
+        </p>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  Pulse — Hacker News data via <a href="https://github.com/HackerNews/API" target="_blank" style="color:var(--text-muted);">HN public API</a>
+</footer>
+
+<script>
+  const HN_API = 'https://hacker-news.firebaseio.com/v0';
+  let allStories = [];
+  let currentFilter = 'all';
+
+  // Stop words for word cloud
+  const STOP = new Set(['the','a','an','and','or','of','to','in','for','is','on','at','by','with','it','as','be','was','that','this','are','from','but','not','have','had','he','she','they','we','you','i','its','has','been','will','can','do','did','if','up','out','so','more','all','new','how','get','use','via','over','into','your','their','our','my','what','why','when','who','which','about','after','before']);
+
+  async function fetchTopStories() {
+    const res = await fetch(`${HN_API}/topstories.json`);
+    const ids = await res.json();
+    return ids.slice(0, 30);
+  }
+
+  async function fetchStory(id) {
+    const res = await fetch(`${HN_API}/item/${id}.json`);
+    return res.json();
+  }
+
+  async function loadAll() {
+    document.getElementById('storyList').innerHTML = skeletons(10);
+
+    try {
+      const ids = await fetchTopStories();
+      const stories = await Promise.all(ids.map(fetchStory));
+      allStories = stories.filter(s => s && s.title);
+      renderAll();
+    } catch (e) {
+      document.getElementById('storyList').innerHTML = `
+        <div class="error-state">
+          <div class="err-icon">⚠</div>
+          <div>Couldn't load stories. Check your connection.</div>
+        </div>`;
+    }
+  }
+
+  function skeletons(n) {
+    return Array.from({length: n}, () => `
+      <div class="sk-row">
+        <div class="sk-num skeleton" style="height:14px;width:20px;border-radius:3px;"></div>
+        <div class="sk-body" style="flex:1;">
+          <div class="sk-line skeleton" style="height:12px;margin-bottom:6px;border-radius:3px;"></div>
+          <div class="sk-line short skeleton" style="height:10px;width:50%;border-radius:3px;"></div>
+        </div>
+      </div>`).join('');
+  }
+
+  function getFilter(story) {
+    const t = (story.title || '').toLowerCase();
+    if (currentFilter === 'ask') return t.startsWith('ask hn');
+    if (currentFilter === 'show') return t.startsWith('show hn');
+    if (currentFilter === 'high') return (story.score || 0) >= 500;
+    return true;
+  }
+
+  function renderAll() {
+    const filtered = allStories.filter(getFilter);
+    const maxScore = Math.max(...filtered.map(s => s.score || 0), 1);
+
+    // Stats
+    const scores = allStories.map(s => s.score || 0);
+    document.getElementById('stat-count').textContent = allStories.length;
+    document.getElementById('stat-avg').textContent = Math.round(scores.reduce((a,b) => a+b, 0) / scores.length);
+    document.getElementById('stat-top').textContent = Math.max(...scores).toLocaleString();
+    document.getElementById('stat-time').textContent = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    document.getElementById('visibleCount').textContent = `Showing ${filtered.length} stories`;
+
+    // Stories
+    document.getElementById('storyList').innerHTML = filtered.map((s, i) => {
+      const domain = s.url ? (() => { try { return new URL(s.url).hostname.replace('www.',''); } catch { return ''; } })() : '';
+      const barW = Math.round((s.score || 0) / maxScore * 100);
+      return `
+        <a class="story-item" href="${s.url || `https://news.ycombinator.com/item?id=${s.id}`}" target="_blank" rel="noopener">
+          <div class="story-rank ${i < 3 ? 'top3' : ''}">${i + 1}</div>
+          <div class="story-body">
+            <div class="story-title">${escHtml(s.title)}</div>
+            <div class="story-meta">
+              <span class="story-score">▲ ${(s.score || 0).toLocaleString()}</span>
+              <span class="story-comments">💬 ${(s.descendants || 0)} comments</span>
+              ${domain ? `<span class="story-domain">${escHtml(domain)}</span>` : ''}
+            </div>
+          </div>
+          <div class="story-bar-wrap">
+            <div class="story-bar" style="width:${barW}%;max-width:48px;"></div>
+          </div>
+        </a>`;
+    }).join('');
+
+    renderWordCloud(filtered);
+    renderCategories(filtered);
+  }
+
+  function renderWordCloud(stories) {
+    const freq = {};
+    stories.forEach(s => {
+      (s.title || '').toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')
+        .split(/\s+/)
+        .filter(w => w.length > 3 && !STOP.has(w))
+        .forEach(w => { freq[w] = (freq[w] || 0) + 1; });
+    });
+
+    const sorted = Object.entries(freq)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 28);
+
+    if (!sorted.length) return;
+    const max = sorted[0][1];
+
+    document.getElementById('wordCloud').innerHTML = sorted.map(([word, count]) => {
+      const size = 11 + Math.round((count / max) * 8);
+      const opacity = 0.5 + (count / max) * 0.5;
+      return `<span class="word-item" style="font-size:${size}px;opacity:${opacity};">${escHtml(word)}</span>`;
+    }).join('');
+  }
+
+  function renderCategories(stories) {
+    const cats = {
+      'Ask HN': 0, 'Show HN': 0, 'Tech': 0, 'Science': 0, 'Other': 0
+    };
+    const techKw = ['javascript','python','rust','go','linux','github','api','llm','ai','gpt','software','open source','web','database','code'];
+    const sciKw = ['research','study','scientists','physics','climate','space','biology','health','medical'];
+
+    stories.forEach(s => {
+      const t = (s.title || '').toLowerCase();
+      if (t.startsWith('ask hn')) cats['Ask HN']++;
+      else if (t.startsWith('show hn')) cats['Show HN']++;
+      else if (techKw.some(k => t.includes(k))) cats['Tech']++;
+      else if (sciKw.some(k => t.includes(k))) cats['Science']++;
+      else cats['Other']++;
+    });
+
+    const total = stories.length || 1;
+    const colors = { 'Ask HN': '#e8ff47', 'Show HN': '#4da6ff', 'Tech': '#47d97a', 'Science': '#ff8c42', 'Other': '#7a7a82' };
+
+    document.getElementById('catBreakdown').innerHTML = Object.entries(cats)
+      .filter(([,v]) => v > 0)
+      .sort((a,b) => b[1]-a[1])
+      .map(([label, count]) => `
+        <div class="cat-item">
+          <span class="cat-label">${label}</span>
+          <div class="cat-track">
+            <div class="cat-fill" style="width:${Math.round(count/total*100)}%;background:${colors[label]};"></div>
+          </div>
+          <span class="cat-count">${count}</span>
+        </div>`).join('');
+  }
+
+  function setFilter(f, btn) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (allStories.length) renderAll();
+  }
+
+  function escHtml(str) {
+    return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // Auto-refresh every 60s
+  loadAll();
+  setInterval(loadAll, 60000);
+</script>
+
+</body>
+</html>
